@@ -10,8 +10,11 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
@@ -29,7 +32,10 @@ class ReadAllComics : ParsedHttpSource() {
 
     private lateinit var searchPageElements: Elements
 
-    override val client = network.cloudflareClient
+    override val client = network.cloudflareClient.newBuilder()
+        .addInterceptor(::archivedCategoryInterceptor)
+        .rateLimit(2)
+        .build()
 
     override fun popularMangaRequest(page: Int): Request {
         val url = baseUrl.toHttpUrl().newBuilder().apply {
@@ -133,6 +139,22 @@ class ReadAllComics : ParsedHttpSource() {
         return document.select("body img:not(body div[id=\"logo\"] img)").mapIndexed { idx, element ->
             Page(idx, "", element.attr("abs:src"))
         }
+    }
+
+    private fun String.capitalizeEachWord(): String {
+        val result = StringBuilder(length)
+        var capitalize = true
+        for (char in this) {
+            result.append(
+                if (capitalize) {
+                    char.uppercase()
+                } else {
+                    char.lowercase()
+                },
+            )
+            capitalize = char.isWhitespace()
+        }
+        return result.toString()
     }
 
     override fun imageUrlParse(document: Document) =
