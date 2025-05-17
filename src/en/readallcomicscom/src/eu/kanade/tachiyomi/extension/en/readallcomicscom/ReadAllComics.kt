@@ -32,16 +32,28 @@ class ReadAllComics : ParsedHttpSource() {
     override val client = network.cloudflareClient
 
     override fun popularMangaRequest(page: Int): Request {
-        throw Exception("ReadAllComics has no popular titles Page. Please use the search function instead.")
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegments("page/$page")
+        }.build()
+
+        return GET(url, headers)
     }
 
-    // Never called
     override fun popularMangaFromElement(element: Element): SManga {
-        throw Exception("")
+        val manga = SManga.create().apply {
+            val category = element.classNames()
+                .firstOrNull { it.startsWith("category-") }!!
+                .substringAfter("category-")
+            setUrlWithoutDomain("/category/$category")
+            title = category.replace("-gitgit ", " ")
+            thumbnail_url = element.selectFirst("img")?.attr("src")
+        }
+
+        return manga
     }
 
-    override fun popularMangaSelector() = ""
-    override fun popularMangaNextPageSelector() = ""
+    override fun popularMangaSelector() = "#post-area > div"
+    override fun popularMangaNextPageSelector() = "a.page-numbers.next"
 
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
         return if (page == 1) {
