@@ -29,10 +29,7 @@ class ReadAllComics : ParsedHttpSource() {
 
     private lateinit var searchPageElements: Elements
 
-    override val client = network.cloudflareClient.newBuilder()
-        .addInterceptor(::archivedCategoryInterceptor)
-        .rateLimit(2)
-        .build()
+    override val client = network.cloudflareClient
 
     override fun popularMangaRequest(page: Int): Request {
         val url = baseUrl.toHttpUrl().newBuilder().apply {
@@ -48,7 +45,7 @@ class ReadAllComics : ParsedHttpSource() {
                 .firstOrNull { it.startsWith("category-") }!!
                 .substringAfter("category-")
             setUrlWithoutDomain("/category/$category")
-            title = category.replace("-gitgit ", " ")
+            title = category.replace("-", " ").titleCaseWords()
             thumbnail_url = element.selectFirst("img")?.attr("src")
         }
 
@@ -136,6 +133,11 @@ class ReadAllComics : ParsedHttpSource() {
         return document.select("body img:not(body div[id=\"logo\"] img)").mapIndexed { idx, element ->
             Page(idx, "", element.attr("abs:src"))
         }
+    }
+
+    private fun String.titleCaseWords(): String {
+        val words = this.split(" ")
+        return words.joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
     }
 
     override fun imageUrlParse(document: Document) =
